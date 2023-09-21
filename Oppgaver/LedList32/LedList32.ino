@@ -19,8 +19,7 @@ int lightMode3 = 0;
 
 const int powerButton = 2;
 const int modeButton = 3;
-
-
+int analog = A0;
 
 int buttonCount1 = 0;
 int buttonState1 = 0; 
@@ -35,6 +34,7 @@ unsigned long previousMillis2 = 0;
 unsigned long previousMillis3 = 0;
 
 const long interval = 200;// timing delay in milliseconds
+
 const long interval_button = 100;// timing delay in milliseconds
 
 void setup() {
@@ -42,6 +42,8 @@ void setup() {
   pixels.begin();
   Serial.begin(9600);
   
+  pinMode(analog, INPUT);
+
   pinMode(powerButton, INPUT);
   pinMode(modeButton, INPUT);
 }
@@ -152,52 +154,23 @@ unsigned long currentMillis2 = millis();
 
 // MODE 3
 void mode3() {
-  
+
 unsigned long currentMillis3 = millis();
-   	   if (currentMillis3 - previousMillis3 >= interval) {
+   	if (currentMillis3 - previousMillis3 >= analogRead(analog)) {
    		lightMode3 = lightMode3 +1;
   		previousMillis3 = currentMillis3;
 		}
   
-       if (lightMode3 == 1){
-        setColorRed();
+    if (lightMode3 == 1){
+      setColorRandom();
        
-  		for (int i=0; i < NUMPIXELS; i=i+2) {
+  	for (int i=0; i < NUMPIXELS; i++) {
     	pixels.setPixelColor(i, pixels.Color(red, green, blue)); // Brukes for å velge hvilke led som skal lyse [i]
-      	pixels.show();
-        }
-       } 
-
-
-      if (lightMode3 == 2){
-        setColorPurple();
-        
-        for (int i=1; i < NUMPIXELS; i=i+2) {
-        pixels.setPixelColor(i, pixels.Color(red, green, blue)); 
-        pixels.show();
-        }
-       }
-          
-
-      if (lightMode3 == 3){
-        setColorGreen();
-        
-        for (int i=0; i < NUMPIXELS; i=i+2) {
-        pixels.setPixelColor(i, pixels.Color(red, green, blue)); 
-        pixels.show();
-        }
-       }
-  
-
-      if (lightMode3 == 4){
-            setColorBlue();
-
-        for (int i=1; i < NUMPIXELS; i=i+2) {
-        pixels.setPixelColor(i, pixels.Color(red, green, blue)); 
-        pixels.show();
-        lightMode3 = 0;
-        }
-       }    	
+      pixels.show();
+      lightMode3 = 0;
+      }
+    } 
+             	
 }
 
 
@@ -252,6 +225,13 @@ void setColorYellow(){
   green = (255);
   blue =  (0);
 }
+
+void setColorRandom(){
+  red =   random(0,255);
+  green = random(0,255);
+  blue =  random(0,255);
+}
+
 void setColorOff(){
   red =   (0);
   green = (0);
@@ -267,20 +247,20 @@ void setColorOff(){
 void ledFunc()
 {
 	   if (buttonCount1 == 1){
-           mode1();
+          mode1();
           }
           
-       if (buttonCount1 == 2){
-           mode2();
-         }
+      if (buttonCount1 == 2){
+          mode2();
+          }
   
-       if (buttonCount1 == 3){
-           mode3();
-         }
+      if (buttonCount1 == 3){
+          mode3();
+          }
 
-        if (buttonCount1 == 0){
-           mode4();
-         }
+      if (buttonCount1 == 0){
+          mode4();
+          }
          
 }      
         
