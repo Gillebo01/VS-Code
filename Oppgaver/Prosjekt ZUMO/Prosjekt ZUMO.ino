@@ -37,8 +37,8 @@ void setup()
         lineSensors.initFiveSensors();
         lineSensors.emittersOn();
         // Calibrates the linesensors
-        //calibrate();
-        //delay(1000);
+        calibrate();
+        delay(1000);
 }
 
 void calibrate()
@@ -77,18 +77,24 @@ void OLED()
         {
                 lastDisplayTime = millis();
                 display.clear();
+                display.setLayout21x8();
                 display.gotoXY(0, 0);
                 display.print(travel);
+                display.setLayout21x8();
                 display.gotoXY(4, 0);
                 display.print("cm");
-/*              display.gotoXY(0, 1);
+
+/*              display.setLayout21x8();
+                display.gotoXY(0, 1);
                 display.print(motorSpeed);
                 display.gotoXY(4, 1);
                 display.print("cm/s");
 */
-                 display.gotoXY(0, 1);
-                 display.print(round(batteryLevel),1);
-                 display.gotoXY(4, 1);
+                display.setLayout21x8();
+                display.gotoXY(0, 1);
+                display.print(round(batteryLevel),1);
+                display.setLayout21x8();
+                display.gotoXY(4, 1);
                 display.print("%");
         }
 }
