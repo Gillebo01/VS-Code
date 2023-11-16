@@ -1,6 +1,7 @@
 // Line Sensor Example
 #include <Zumo32U4.h>
 #include <Wire.h>
+#include <EEPROM.h>
 
 Zumo32U4Motors motors;
 Zumo32U4ButtonA buttonA;
@@ -43,6 +44,7 @@ void setup()
         // Calibrates the linesensors
         //calibrate();
         //delay(1000);
+        batteryLevel = EEPROM.read(0);
         //buttonB.waitForButton();
 }
 
@@ -88,14 +90,14 @@ void OLED()
                 display.gotoXY(5, 0);
                 display.print("cm");
 
-                display.gotoXY(0, 1);
+                display.gotoXY(0, 2);
                 display.print(motorSpeed);
-                display.gotoXY(5, 1);
+                display.gotoXY(5, 2);
                 display.print("cm/s");
 
-                display.gotoXY(0, 2);
+                display.gotoXY(0, 4);
                 display.print(round(batteryLevel), 1);
-                display.gotoXY(5, 2);
+                display.gotoXY(5, 4);
                 display.print("%");
         }
 }
@@ -114,12 +116,12 @@ void calculations()
                 motorSpeed = abs((((currentPos - lastPos) / 7.9) / (currentMillis - lastMillis)) * 100);
                 if (batteryLevel > 0 and motorSpeed > 20)
                 {
-                        batteryLevel -= 0.01 + (currentPos - lastPos) / 10000 * motorSpeed;
+                        batteryLevel -= 0.01 + (currentPos - lastPos) / 100000 * motorSpeed;
                 }
 
                 if (batteryLevel > 0 and motorSpeed < 20)
                 {
-                        batteryLevel -= 0.01 + (currentPos - lastPos) / 1000 * motorSpeed;
+                        batteryLevel -= 0.01 + (currentPos - lastPos) / 1000000 * motorSpeed;
                 }
 
                 if (batteryLevel < 20 and ((currentPos - lastPos) < 0))
@@ -129,6 +131,7 @@ void calculations()
 
                 lastMillis = currentMillis;
                 lastPos = currentPos;
+                EEPROM.write(0, batteryLevel);
         }
         // Serial.println(motorSpeed);
         // Serial.println(batteryLevel);
@@ -237,4 +240,5 @@ void loop()
         OLED();
         calculations();
         batterydependentRUN();
+        //EEPROM.clear(); For later use
 }
