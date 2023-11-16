@@ -1,12 +1,14 @@
 // Line Sensor Example
 #include <Zumo32U4.h>
 #include <Wire.h>
+#include <EEPROM.h>
 
 Zumo32U4Motors motors;
 Zumo32U4ButtonA buttonA;
+Zumo32U4ButtonB buttonB;
+Zumo32U4ButtonB buttonC;
 Zumo32U4LineSensors lineSensors;
 Zumo32U4Encoders encoders;
-Zumo32U4ButtonB buttonB;
 Zumo32U4OLED display;
 
 unsigned long lastMillis = 0;
@@ -16,15 +18,18 @@ long lastPos = 0;
 float lastPosBat = 0;
 long travel = 0;
 float batteryLevel = 100;
+int batteryLevelWatch = 0;
 float batteryDrain = 0;
 const char encoderErrorLeft[] PROGMEM = "!<c2";
 const char encoderErrorRight[] PROGMEM = "!<e2";
 long totCountsLeft = 0;
 long totCountsRight = 0;
+int boost = 0;
+int cState = 0;
 // Sensor values will go in this array
 unsigned int lineSensorValues[5];
 // int sensVal = 0;
-int speed1 = 75;
+int speed1 = 220;
 // int speed2 = 150;
 // int speed3 = 200;
 // int mid = 2000;
@@ -38,7 +43,9 @@ void setup()
         lineSensors.emittersOn();
         // Calibrates the linesensors
         //calibrate();
-        buttonB.waitForButton();
+        //delay(1000);
+        batteryLevel = EEPROM.read(0);
+        //buttonB.waitForButton();
 }
 
 void calibrate()
@@ -73,7 +80,7 @@ void OLED()
         int16_t position = lineSensors.readLine(lineSensorValues);
         static uint8_t lastDisplayTime;
 
-        if ((uint8_t)(millis() - lastDisplayTime) >= 100)
+        if ((uint8_t)(millis() - lastDisplayTime) >= 200)
         {
                 lastDisplayTime = millis();
                 display.clear();
@@ -83,15 +90,14 @@ void OLED()
                 display.gotoXY(5, 0);
                 display.print("cm");
 
-
-                display.gotoXY(0, 1);
+                display.gotoXY(0, 2);
                 display.print(motorSpeed);
-                display.gotoXY(5, 1);
+                display.gotoXY(5, 2);
                 display.print("cm/s");
 
-                display.gotoXY(0, 2);
-                display.print(round(batteryLevel),1);
-                display.gotoXY(5, 2);
+                display.gotoXY(0, 4);
+                display.print(round(batteryLevel), 1);
+                display.gotoXY(5, 4);
                 display.print("%");
         }
 }
@@ -101,21 +107,34 @@ void calculations()
         totCountsLeft += encoders.getCountsAndResetLeft();
         totCountsRight += encoders.getCountsAndResetRight();
 
-        travel = ((totCountsLeft + totCountsRight) / 2) / 7.9 / 10;
+        travel = abs(((totCountsLeft + totCountsRight) / 2) / 7.9 / 10);
 
         unsigned long currentMillis = millis();
         float currentPos = (totCountsLeft + totCountsRight) / 2;
         if (currentMillis - lastMillis >= 100)
         {
-                motorSpeed = (((currentPos - lastPos) / 7.9) / (currentMillis - lastMillis)) * 100;
-            if (batteryLevel > 0){   
-                batteryLevel -= 0.01 + (currentPos-lastPos) / 10000 * motorSpeed;} 
+                motorSpeed = abs((((currentPos - lastPos) / 7.9) / (currentMillis - lastMillis)) * 100);
+                if (batteryLevel > 0 and motorSpeed > 20)
+                {
+                        batteryLevel -= 0.01 + (currentPos - lastPos) / 100000 * motorSpeed;
+                }
+
+                if (batteryLevel > 0 and motorSpeed < 20)
+                {
+                        batteryLevel -= 0.01 + (currentPos - lastPos) / 1000000 * motorSpeed;
+                }
+
+                if (batteryLevel < 20 and ((currentPos - lastPos) < 0))
+                {
+                        batteryLevel -= 0.01 + 10 * ((currentPos - lastPos) / 10000 * motorSpeed);
+                }
 
                 lastMillis = currentMillis;
                 lastPos = currentPos;
+                EEPROM.write(0, batteryLevel);
         }
-        //Serial.println(motorSpeed);
-        Serial.println(batteryLevel);
+        // Serial.println(motorSpeed);
+        // Serial.println(batteryLevel);
 }
 
 void RUN()
@@ -155,10 +174,71 @@ void RUN()
         // Serial.println(position);
 }
 
+void chargeBoost()
+{
+        int cState = buttonB.getSingleDebouncedPress();
+        if (cState)
+        {
+                boost += 1;
+                delay(1000);
+        }
+
+        if (boost == 1)
+        {
+                if (batteryLevel < 20)
+                {
+                        motors.setSpeeds(-100, -100);
+
+                }
+        }
+
+        if (boost == 1 and batteryLevel >= 20)
+        {
+                boost += 1;
+        }
+        Serial.println("Boost");
+        Serial.println(boost);                        
+        Serial.println("BatteryLevel");
+        Serial.println(batteryLevel);
+}
+
+void batterydependentRUN()
+{
+        if (batteryLevel > 20)
+        {
+                batteryLevelWatch = 1;
+        }
+        if (batteryLevel <= 20 and batteryLevel > 0)
+        {
+                batteryLevelWatch = 2;
+        }
+        if (batteryLevel <= 0)
+        {
+                batteryLevelWatch = 3;
+        }
+
+        switch (batteryLevelWatch)
+        {
+        case 1:
+                (speed1 = speed1);
+                break;
+
+        case 2:
+                (speed1 = 100);
+                break;
+
+        case 3:
+                (speed1 = 0);
+                break;
+        }
+}
 
 void loop()
 {
         RUN();
+        chargeBoost();
         OLED();
         calculations();
+        batterydependentRUN();
+        //EEPROM.clear(); For later use
 }
