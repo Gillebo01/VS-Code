@@ -37,8 +37,8 @@ void setup()
         lineSensors.initFiveSensors();
         lineSensors.emittersOn();
         // Calibrates the linesensors
-        calibrate();
-        delay(1000);
+        //calibrate();
+        buttonB.waitForButton();
 }
 
 void calibrate()
@@ -80,21 +80,18 @@ void OLED()
                 display.setLayout21x8();
                 display.gotoXY(0, 0);
                 display.print(travel);
-                display.setLayout21x8();
-                display.gotoXY(4, 0);
+                display.gotoXY(5, 0);
                 display.print("cm");
 
-/*              display.setLayout21x8();
+
                 display.gotoXY(0, 1);
                 display.print(motorSpeed);
-                display.gotoXY(4, 1);
+                display.gotoXY(5, 1);
                 display.print("cm/s");
-*/
-                display.setLayout21x8();
-                display.gotoXY(0, 1);
+
+                display.gotoXY(0, 2);
                 display.print(round(batteryLevel),1);
-                display.setLayout21x8();
-                display.gotoXY(4, 1);
+                display.gotoXY(5, 2);
                 display.print("%");
         }
 }
@@ -112,7 +109,7 @@ void calculations()
         {
                 motorSpeed = (((currentPos - lastPos) / 7.9) / (currentMillis - lastMillis)) * 100;
             if (batteryLevel > 0){   
-                batteryLevel -= 0.1 + (currentPos-lastPos) / 10000 * motorSpeed;} 
+                batteryLevel -= 0.01 + (currentPos-lastPos) / 10000 * motorSpeed;} 
 
                 lastMillis = currentMillis;
                 lastPos = currentPos;
@@ -158,28 +155,10 @@ void RUN()
         // Serial.println(position);
 }
 
-void battery()
-{
-       /* unsigned long currentMillisBat = millis();
-        float currentPosBat = (totCountsLeft + totCountsRight) / 2;
-        if (currentMillisBat - lastMillisBat >= 100)
-        {
-                batteryLevel -= 0.1;// + (abs(currentPosBat-lastPosBat) / 1000) * motorSpeed;
-                // int batteryLevel -= batteryDrain;
-                //  Serial.println(batteryDrain);
-                lastMillisBat = currentMillisBat;
-                lastPosBat = currentPosBat;
-
-                //Serial.println(round(batteryLevel), 2);
-               
-
-        }*/
-}
 
 void loop()
 {
         RUN();
         OLED();
-       // battery();
         calculations();
 }
