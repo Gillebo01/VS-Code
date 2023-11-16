@@ -41,8 +41,8 @@ void setup()
         lineSensors.initFiveSensors();
         lineSensors.emittersOn();
         // Calibrates the linesensors
-        calibrate();
-        delay(1000);
+        //calibrate();
+        //delay(1000);
         //buttonB.waitForButton();
 }
 
@@ -112,10 +112,16 @@ void calculations()
         if (currentMillis - lastMillis >= 100)
         {
                 motorSpeed = abs((((currentPos - lastPos) / 7.9) / (currentMillis - lastMillis)) * 100);
-                if (batteryLevel > 0)
+                if (batteryLevel > 0 and motorSpeed > 20)
                 {
                         batteryLevel -= 0.01 + (currentPos - lastPos) / 10000 * motorSpeed;
                 }
+
+                if (batteryLevel > 0 and motorSpeed < 20)
+                {
+                        batteryLevel -= 0.01 + (currentPos - lastPos) / 1000 * motorSpeed;
+                }
+
                 if (batteryLevel < 20 and ((currentPos - lastPos) < 0))
                 {
                         batteryLevel -= 0.01 + 10 * ((currentPos - lastPos) / 10000 * motorSpeed);
@@ -215,7 +221,7 @@ void batterydependentRUN()
                 break;
 
         case 2:
-                (speed1 = speed1*0.5);
+                (speed1 = 100);
                 break;
 
         case 3:
