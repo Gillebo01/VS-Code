@@ -16,7 +16,7 @@ float motorSpeed = 0;
 long lastPos = 0;
 float lastPosBat = 0;
 long travel = 0;
-float batteryLevel = 10;
+float batteryLevel = 100;
 int batteryLevelWatch = 0;
 float batteryDrain = 0;
 const char encoderErrorLeft[] PROGMEM = "!<c2";
@@ -28,7 +28,7 @@ int cState = 0;
 // Sensor values will go in this array
 unsigned int lineSensorValues[5];
 // int sensVal = 0;
-int speed1 = 120;
+int speed1 = 220;
 // int speed2 = 150;
 // int speed3 = 200;
 // int mid = 2000;
@@ -171,6 +171,7 @@ void chargeBoost()
         if (cState)
         {
                 boost += 1;
+                delay(1000);
         }
 
         if (boost == 1)
@@ -214,7 +215,7 @@ void batterydependentRUN()
                 break;
 
         case 2:
-                (speed1 = 80);
+                (speed1 = speed1*0.5);
                 break;
 
         case 3:
