@@ -1,16 +1,20 @@
-// Line Sensor Example
 #include <Zumo32U4.h>
 #include <Wire.h>
 #include <EEPROM.h>
+
+#define DEBUG_CHARGER_LINK
+#include "ChargerLink/ChargerLink.h"
 
 Zumo32U4Motors motors;
 Zumo32U4ButtonA buttonA;
 Zumo32U4ButtonB buttonB;
 Zumo32U4ButtonB buttonC;
 Zumo32U4LineSensors lineSensors;
+Zumo32U4ProximitySensors proxSensors;
 Zumo32U4Encoders encoders;
 Zumo32U4OLED display;
 
+int carId = 0;
 unsigned long lastMillis = 0;
 unsigned long lastMillisBat = 0;
 float motorSpeed = 0;
@@ -19,6 +23,8 @@ float lastPosBat = 0;
 long travel = 0;
 float batteryLevel = 100;
 int batteryLevelWatch = 0;
+float batteryHealth = 100;
+int batteryHealthWatch = 0;
 float batteryDrain = 0;
 const char encoderErrorLeft[] PROGMEM = "!<c2";
 const char encoderErrorRight[] PROGMEM = "!<e2";
@@ -26,49 +32,58 @@ long totCountsLeft = 0;
 long totCountsRight = 0;
 int boost = 0;
 int cState = 0;
+int PROXIMITY = 0;
+
+ZumoIrSocket irSocket(22, carId, LEFT_IR);
+ChargerLink chargerLink(irSocket);
+
 // Sensor values will go in this array
 unsigned int lineSensorValues[5];
-// int sensVal = 0;
+
 int speed1 = 220;
-// int speed2 = 150;
-// int speed3 = 200;
-// int mid = 2000;
 
 void setup()
 {
         Serial.begin(9600);
+        Serial.begin(115200);
+        irSocket.begin();
+        // EEPROM.write(0,0);
         buttonA.waitForButton();
         // Initialize the sensors, and turn on the LEDs for them.
         lineSensors.initFiveSensors();
         lineSensors.emittersOn();
+        proxSensors.initFrontSensor();
         // Calibrates the linesensors
-        //calibrate();
-        //delay(1000);
-        batteryLevel = EEPROM.read(0);
-        //buttonB.waitForButton();
+        calibrate();
+        if (EEPROM.read(0) > 0)
+        {
+                batteryHealth = EEPROM.read(0);
+        }
+        buttonB.waitForButton();
+        delay(1000);
 }
 
 void calibrate()
 {
-        for (int i = 100; i < 200; i++)
+        for (int i = 100; i < 150; i++)
         {
                 motors.setSpeeds(i, -i);
                 lineSensors.calibrate();
         }
 
-        for (int i = 200; i > 0; i--)
+        for (int i = 150; i > 0; i--)
         {
                 motors.setSpeeds(i, -i);
                 lineSensors.calibrate();
         }
 
-        for (int i = 100; i < 200; i++)
+        for (int i = 100; i < 150; i++)
         {
                 motors.setSpeeds(-i, i);
                 lineSensors.calibrate();
         }
 
-        for (int i = 200; i > 0; i--)
+        for (int i = 150; i > 0; i--)
         {
                 motors.setSpeeds(-i, i);
                 lineSensors.calibrate();
@@ -99,6 +114,11 @@ void OLED()
                 display.print(round(batteryLevel), 1);
                 display.gotoXY(5, 4);
                 display.print("%");
+
+                display.gotoXY(0, 6);
+                display.print(round(batteryHealth), 1);
+                display.gotoXY(5, 6);
+                display.print("%");
         }
 }
 
@@ -117,11 +137,13 @@ void calculations()
                 if (batteryLevel > 0 and motorSpeed > 20)
                 {
                         batteryLevel -= 0.01 + (currentPos - lastPos) / 100000 * motorSpeed;
+                        batteryHealth -= abs((0.01 + (currentPos - lastPos) / 100000 * motorSpeed) / 100);
                 }
 
                 if (batteryLevel > 0 and motorSpeed < 20)
                 {
                         batteryLevel -= 0.01 + (currentPos - lastPos) / 1000000 * motorSpeed;
+                        batteryHealth -= abs((0.01 + (currentPos - lastPos) / 1000000 * motorSpeed) / 10);
                 }
 
                 if (batteryLevel < 20 and ((currentPos - lastPos) < 0))
@@ -131,7 +153,7 @@ void calculations()
 
                 lastMillis = currentMillis;
                 lastPos = currentPos;
-                EEPROM.write(0, batteryLevel);
+                EEPROM.write(0, batteryHealth);
         }
         // Serial.println(motorSpeed);
         // Serial.println(batteryLevel);
@@ -139,39 +161,46 @@ void calculations()
 
 void RUN()
 {
+        tooClose();
         int16_t position = lineSensors.readLine(lineSensorValues);
 
-        // Mid
-        if (1700 < position < 2300)
+        if (PROXIMITY < 5)
         {
-                motors.setSpeeds(speed1, speed1);
+
+                // Mid
+                if (1700 < position < 2300)
+                {
+                        motors.setSpeeds(speed1, speed1);
+                }
+
+                // Høyre
+
+                if (position < 1700)
+                {
+                        motors.setSpeeds(speed1 * 0.5, speed1 * 1.5);
+                }
+
+                if (position <= 1000)
+                {
+                        motors.setSpeeds(speed1 * 0.25, speed1 * 2);
+                }
+
+                // Venstre
+
+                if (position > 2300)
+                {
+                        motors.setSpeeds(speed1 * 1.5, speed1 * 0.5);
+                }
+
+                if (position >= 3000)
+                {
+                        motors.setSpeeds(speed1 * 2, speed1 * 0.25);
+                }
         }
-
-        // Høyre
-
-        if (position < 1700)
+        else
         {
-                motors.setSpeeds(speed1 * 0.5, speed1 * 1.5);
+                motors.setSpeeds(0, 0);
         }
-
-        if (position <= 1000)
-        {
-                motors.setSpeeds(speed1 * 0.25, speed1 * 2);
-        }
-
-        // Venstre
-
-        if (position > 2300)
-        {
-                motors.setSpeeds(speed1 * 1.5, speed1 * 0.5);
-        }
-
-        if (position >= 3000)
-        {
-                motors.setSpeeds(speed1 * 2, speed1 * 0.25);
-        }
-
-        // Serial.println(position);
 }
 
 void chargeBoost()
@@ -188,7 +217,6 @@ void chargeBoost()
                 if (batteryLevel < 20)
                 {
                         motors.setSpeeds(-100, -100);
-
                 }
         }
 
@@ -196,10 +224,6 @@ void chargeBoost()
         {
                 boost += 1;
         }
-        Serial.println("Boost");
-        Serial.println(boost);                        
-        Serial.println("BatteryLevel");
-        Serial.println(batteryLevel);
 }
 
 void batterydependentRUN()
@@ -233,6 +257,40 @@ void batterydependentRUN()
         }
 }
 
+void tooClose()
+{
+        proxSensors.read();
+        int proxValLeft = proxSensors.countsFrontWithLeftLeds();
+        int proxValRight = proxSensors.countsFrontWithRightLeds();
+
+        PROXIMITY = (proxValLeft + proxValRight) / 2;
+}
+
+void updateChargerLink()
+{
+        if (chargerLink.read())
+        {
+                if (chargerLink.signal == ChargerLinkSignal::LINK_AVAILABLE)
+                {
+                        Serial.println("Detected charger link!");
+                }
+
+                if (chargerLink.signal == ChargerLinkSignal::BALANCE)
+                {
+                        Serial.println(chargerLink.balance);
+                }
+        }
+}
+
+void updateButton()
+{
+        if (buttonA.getSingleDebouncedPress())
+        {
+                Serial.println("Added 20 to balance!");
+                chargerLink.addEarnings(20);
+        }
+}
+
 void loop()
 {
         RUN();
@@ -240,5 +298,6 @@ void loop()
         OLED();
         calculations();
         batterydependentRUN();
-        //EEPROM.clear(); For later use
+        updateChargerLink();
+        updateButton();
 }
